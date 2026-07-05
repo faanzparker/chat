@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat Valdez</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#25D366',
+                        secondary: '#128C7E',
+                        dark: '#075E54',
+                        light: '#DCF8C6'
+                    },
+                    fontFamily: {
+                        sans: ['Segoe UI', 'Roboto', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .scrollbar-thin::-webkit-scrollbar {
+                width: 5px;
+            }
+            .scrollbar-thin::-webkit-scrollbar-thumb {
+                background: #bbb;
+                border-radius: 10px;
+            }
+            .chat-bubble-right {
+                border-top-right-radius: 0;
+                background-color: #DCF8C6;
+            }
+            .chat-bubble-left {
+                border-top-left-radius: 0;
+                background-color: white;
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-100 h-screen flex flex-col">
+
+    <!-- Layar Masuk Nama -->
+    <div id="login-screen" class="flex flex-col items-center justify-center h-full p-4 bg-gradient-to-br from-dark to-secondary">
+        <div class="bg-white p-8 rounded-xl shadow-2xl w-full max-w-md">
+            <div class="text-center mb-6">
+                <i class="fa fa-comments text-5xl text-primary mb-4"></i>
+                <h2 class="text-2xl font-bold text-gray-800">Masuk ke Ruang Chat</h2>
+                <p class="text-gray-500">Masukkan nama untuk mulai ngobrol</p>
+            </div>
+            <input type="text" id="nama-pengguna" placeholder="Contoh: Valdez" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary mb-4">
+            <button onclick="masukKeChat()" class="w-full bg-primary hover:bg-secondary text-white font-semibold py-3 rounded-lg transition">Masuk Sekarang</button>
+        </div>
+    </div>
+
+    <!-- Layar Utama Chat -->
+    <div id="chat-screen" class="hidden flex flex-col h-full">
+        <div class="bg-dark text-white px-4 py-3 flex items-center justify-between shadow-md">
+            <div class="flex items-center gap-3">
+                <i class="fa fa-user-circle-o text-2xl"></i>
+                <div>
+                    <h3 class="font-bold" id="nama-saya">Pengguna</h3>
+                    <p class="text-xs text-gray-200">Terhubung • <span id="jumlah-pengguna">1</span> orang</p>
+                </div>
+            </div>
+            <button onclick="segarkanData()" class="text-white hover:text-light" title="Segarkan">
+                <i class="fa fa-refresh text-xl"></i>
+            </button>
+        </div>
+
+        <div class="flex flex-1 overflow-hidden">
+            <div class="w-1/3 bg-white border-r border-gray-200 overflow-y-auto scrollbar-thin hidden md:block">
+                <h4 class="px-4 py-2 bg-gray-100 font-semibold text-gray-700">Pengguna Terhubung</h4>
+                <ul id="daftar-pengguna" class="divide-y divide-gray-100">
+                    <li class="px-4 py-3" id="pengguna-saya">
+                        <i class="fa fa-user text-primary mr-2"></i>
+                        <span id="nama-saya-samping">Saya</span>
+                    </li>
+                </ul>
+            </div>
+
+            <div class="flex-1 flex flex-col bg-gray-50">
+                <div id="area-pesan" class="flex-1 p-4 overflow-y-auto scrollbar-thin space-y-3">
+                    <div class="text-center text-gray-500 text-sm my-4">
+                        <i class="fa fa-info-circle mr-1"></i> Siap ngobrol sama semua pengguna
+                    </div>
+                </div>
+                <div class="bg-white px-3 py-2 border-t border-gray-200">
+                    <div class="flex items-center gap-2">
+                        <input type="text" id="input-pesan" placeholder="Ketik pesan..." class="flex-1 px-4 py-2 border border-gray-300 rounded-full focus:outline-none focus:ring-1 focus:ring-primary">
+                        <button onclick="kirimPesan()" class="bg-primary hover:bg-secondary text-white p-3 rounded-full">
+                            <i class="fa fa-paper-plane"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let namaSaya = "";
+        const KUNCI_NAMA = "namaPenggunaSaya";
+        const KUNCI_PENGGUNA = "daftarPenggunaValdez";
+        const KUNCI_PESAN = "daftarPesanValdez";
+
+        // Cek apakah sudah pernah masuk sebelumnya
+        window.onload = function() {
+            const namaTersimpan = localStorage.getItem(KUNCI_NAMA);
+            if (namaTersimpan) {
+                namaSaya = namaTersimpan;
+                bukaRuangChat();
+            }
+        };
+
+        function masukKeChat() {
+            const input = document.getElementById("nama-pengguna").value.trim();
+            if (!input) { alert("Nama tidak boleh kosong!"); return; }
+            namaSaya = input;
+            localStorage.setItem(KUNCI_NAMA, namaSaya);
+            simpanPenggunaBaru(namaSaya);
+            bukaRuangChat();
+        }
+
+        function bukaRuangChat() {
+            document.getElementById("nama-saya").innerText = namaSaya;
+            document.getElementById("nama-saya-samping").innerText = namaSaya;
+            document.getElementById("login-screen").style.display = "none";
+            document.getElementById("chat-screen").style.display = "flex";
+            segarkanDaftarPengguna();
+            tampilkanSemuaPesan();
+            setInterval(() => { segarkanDaftarPengguna(); tampilkanSemuaPesan(); }, 3000);
+        }
+
+        function simpanPenggunaBaru(nama) {
+            let daftar = JSON.parse(localStorage.getItem(KUNCI_PENGGUNA)) || [];
+            if (!daftar.includes(nama)) {
+                daftar.push(nama);
+                localStorage.setItem(KUNCI_PENGGUNA, JSON.stringify(daftar));
+            }
+        }
+
+        function segarkanDaftarPengguna() {
+            let daftar = JSON.parse(localStorage.getItem(KUNCI_PENGGUNA)) || [];
+            const elemen = document.getElementById("daftar-pengguna");
+            document.getElementById("jumlah-pengguna").innerText = daftar.length;
+            Array.from(elemen.children).forEach(item => { if (item.id !== "pengguna-saya") item.remove(); });
+            daftar.forEach(nama => {
+                if (nama !== namaSaya) {
+                    const li = document.createElement("li");
+                    li.className = "px-4 py-3 hover:bg-gray-50 cursor-pointer";
+                    li.innerHTML = `<i class="fa fa-user text-gray-500 mr-2"></i> ${nama}`;
+                    elemen.appendChild(li);
+                }
+            });
+        }
+
+        function kirimPesan() {
+            const input = document.getElementById("input-pesan");
+            const teks = input.value.trim();
+            if (!teks) return;
+            const pesanBaru = {
+                pengirim: namaSaya,
+                isi: teks,
+                waktu: new Date().toLocaleTimeString('id-ID', {hour:'2-digit', minute:'2-digit'})
+            };
+            let daftarPesan = JSON.parse(localStorage.getItem(KUNCI_PESAN)) || [];
+            daftarPesan.push(pesanBaru);
+            localStorage.setItem(KUNCI_PESAN, JSON.stringify(daftarPesan));
+            input.value = "";
+            tampilkanSemuaPesan();
+        }
+
+        function tampilkanSemuaPesan() {
+            const area = document.getElementById("area-pesan");
+            const daftarPesan = JSON.parse(localStorage.getItem(KUNCI_PESAN)) || [];
+            area.innerHTML = "";
+            daftarPesan.forEach(p => {
+                const sisi = p.pengirim === namaSaya ? "justify-end" : "justify-start";
+                const gelembung = p.pengirim === namaSaya ? "chat-bubble-right" : "chat-bubble-left";
+                const namaTampil = p.pengirim === namaSaya ? "" : `<div class="text-xs text-gray-500 mb-1">${p.pengirim}</div>`;
+                const div = document.createElement("div");
+                div.className = `flex ${sisi}`;
+                div.innerHTML = `
+                    <div class="max-w-[75%]">
+                        ${namaTampil}
+                        <div class="${gelembung} p-3 rounded-lg shadow-sm">
+                            <p class="text-gray-800">${p.isi}</p>
+                            <p class="text-right text-xs text-gray-500 mt-1">${p.waktu}</p>
+                        </div>
+                    </div>
+                `;
+                area.appendChild(div);
+            });
+            area.scrollTop = area.scrollHeight;
+        }
+
+        function segarkanData() {
+            segarkanDaftarPengguna();
+            tampilkanSemuaPesan();
+        }
+    </script>
+</body>
+  </html>
+              
